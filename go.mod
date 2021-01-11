@@ -2,7 +2,7 @@ module github.com/fdurand/scep
 
 require (
 	github.com/boltdb/bolt v1.3.1
-	github.com/fdurand/pkcs7 v0.0.0-20210106140739-9769e2d77bf4 // indirect
+	github.com/fdurand/pkcs7 v0.0.0-20210106140739-9769e2d77bf4
 	github.com/go-kit/kit v0.4.0
 	github.com/go-logfmt/logfmt v0.3.0 // indirect
 	github.com/go-stack/stack v1.6.0 // indirect

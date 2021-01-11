@@ -11,11 +11,11 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/go-kit/kit/log"
 	"github.com/fdurand/scep/challenge"
 	"github.com/fdurand/scep/csrverifier"
 	"github.com/fdurand/scep/depot"
 	"github.com/fdurand/scep/scep"
+	"github.com/go-kit/kit/log"
 )
 
 // Service is the interface for all supported SCEP server operations.
@@ -51,6 +51,7 @@ type service struct {
 	csrVerifier             csrverifier.CSRVerifier
 	allowRenewal            int // days before expiry, 0 to disable
 	clientValidity          int // client cert validity in days
+	profile                 string
 
 	/// info logging is implemented in the service middleware layer.
 	debugLogger log.Logger
@@ -262,6 +263,15 @@ func WithDynamicChallenges(cache challenge.Store) ServiceOption {
 	return func(s *service) error {
 		s.supportDynamciChallenge = true
 		s.dynamicChallengeStore = cache
+		return nil
+	}
+}
+
+// Profile is an optional argument to NewService
+// which allows setting a profile for SCEP.
+func Profile(profile string) ServiceOption {
+	return func(s *service) error {
+		s.profile = profile
 		return nil
 	}
 }
