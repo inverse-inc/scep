@@ -42,7 +42,7 @@ func NewBoltDepot(db *bolt.DB) (*Depot, error) {
 	return &Depot{db}, nil
 }
 
-func (db *Depot) CA(pass []byte) ([]*x509.Certificate, *rsa.PrivateKey, error) {
+func (db *Depot) CA(pass []byte, options ...string) ([]*x509.Certificate, *rsa.PrivateKey, error) {
 	chain := []*x509.Certificate{}
 	var key *rsa.PrivateKey
 	err := db.View(func(tx *bolt.Tx) error {
@@ -82,7 +82,7 @@ func (db *Depot) CA(pass []byte) ([]*x509.Certificate, *rsa.PrivateKey, error) {
 	return chain, key, nil
 }
 
-func (db *Depot) Put(cn string, crt *x509.Certificate) error {
+func (db *Depot) Put(cn string, crt *x509.Certificate, options ...string) error {
 	if crt == nil || crt.Raw == nil {
 		return fmt.Errorf("%q does not specify a valid certificate for storage", cn)
 	}
@@ -105,7 +105,7 @@ func (db *Depot) Put(cn string, crt *x509.Certificate) error {
 	return db.incrementSerial(serial)
 }
 
-func (db *Depot) Serial() (*big.Int, error) {
+func (db *Depot) Serial(options ...string) (*big.Int, error) {
 	s := big.NewInt(2)
 	if !db.hasKey([]byte("serial")) {
 		if err := db.writeSerial(s); err != nil {
@@ -170,7 +170,7 @@ func (db *Depot) incrementSerial(s *big.Int) error {
 	return err
 }
 
-func (db *Depot) HasCN(cn string, allowTime int, cert *x509.Certificate, revokeOldCertificate bool) (bool, error) {
+func (db *Depot) HasCN(cn string, allowTime int, cert *x509.Certificate, revokeOldCertificate bool, options ...string) (bool, error) {
 	// TODO: implement allowTime
 	// TODO: implement revocation
 	if cert == nil {

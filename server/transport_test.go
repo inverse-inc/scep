@@ -93,7 +93,7 @@ func TestPKIOperationGET(t *testing.T) {
 	defer teardown()
 	pkcsreq := loadTestFile(t, "../scep/testdata/PKCSReq.der")
 	message := base64.StdEncoding.EncodeToString(pkcsreq)
-	req, err := http.NewRequest("GET", server.URL + "/scep", nil)
+	req, err := http.NewRequest("GET", server.URL+"/scep", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func newServer(t *testing.T, opts ...scepserver.ServiceOption) (*httptest.Server
 
 type noopDepot struct{ depot.Depot }
 
-func (d *noopDepot) Put(name string, crt *x509.Certificate) error {
+func (d *noopDepot) Put(name string, crt *x509.Certificate, options ...string) error {
 	return nil
 }
 

@@ -127,7 +127,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 		return nil, err
 	}
 
-	serial, err := svc.depot.Serial()
+	serial, err := svc.depot.Serial(svc.profile)
 	if err != nil {
 		return nil, err
 	}
@@ -160,12 +160,12 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	// Test if this certificate is already in the CADB, revoke if needed
 	// revocation is done if the validity of the existing certificate is
 	// less than allowRenewal (14 days by default)
-	_, err = svc.depot.HasCN(name, svc.allowRenewal, crt, false)
+	_, err = svc.depot.HasCN(name, svc.allowRenewal, crt, false, svc.profile)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := svc.depot.Put(name, crt); err != nil {
+	if err := svc.depot.Put(name, crt, svc.profile); err != nil {
 		return nil, err
 	}
 
@@ -289,7 +289,7 @@ func NewService(depot depot.Depot, opts ...ServiceOption) (Service, error) {
 	}
 
 	var err error
-	s.ca, s.caKey, err = depot.CA(s.caKeyPassword)
+	s.ca, s.caKey, err = depot.CA(s.caKeyPassword, s.profile)
 	if err != nil {
 		return nil, err
 	}

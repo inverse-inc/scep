@@ -33,7 +33,7 @@ type fileDepot struct {
 	dirPath string
 }
 
-func (d *fileDepot) CA(pass []byte) ([]*x509.Certificate, *rsa.PrivateKey, error) {
+func (d *fileDepot) CA(pass []byte, options ...string) ([]*x509.Certificate, *rsa.PrivateKey, error) {
 	caPEM, err := d.getFile("ca.pem")
 	if err != nil {
 		return nil, nil, err
@@ -61,7 +61,7 @@ const (
 )
 
 // Put adds a certificate to the depot
-func (d *fileDepot) Put(cn string, crt *x509.Certificate) error {
+func (d *fileDepot) Put(cn string, crt *x509.Certificate, options ...string) error {
 	if crt == nil {
 		return errors.New("crt is nil")
 	}
@@ -102,7 +102,7 @@ func (d *fileDepot) Put(cn string, crt *x509.Certificate) error {
 	return nil
 }
 
-func (d *fileDepot) Serial() (*big.Int, error) {
+func (d *fileDepot) Serial(options ...string) (*big.Int, error) {
 	name := d.path("serial")
 	s := big.NewInt(2)
 	if err := d.check("serial"); err != nil {
@@ -165,7 +165,7 @@ func makeDn(cert *x509.Certificate) string {
 }
 
 // Determine if the cadb already has a valid certificate with the same name
-func (d *fileDepot) HasCN(cn string, allowTime int, cert *x509.Certificate, revokeOldCertificate bool) (bool, error) {
+func (d *fileDepot) HasCN(cn string, allowTime int, cert *x509.Certificate, revokeOldCertificate bool, options ...string) (bool, error) {
 
 	var addDB bytes.Buffer
 	candidates := make(map[string]string)

@@ -36,6 +36,18 @@ func MakeHTTPHandler(e *Endpoints, svc Service, logger kitlog.Logger) http.Handl
 		encodeSCEPResponse,
 		opts...,
 	))
+	r.Methods("GET").Path("/api/v1/scep/{id}").Handler(kithttp.NewServer(
+		e.GetEndpoint,
+		decodeSCEPRequest,
+		encodeSCEPResponse,
+		opts...,
+	))
+	r.Methods("POST").Path("/api/v1/scep/{id}").Handler(kithttp.NewServer(
+		e.PostEndpoint,
+		decodeSCEPRequest,
+		encodeSCEPResponse,
+		opts...,
+	))
 
 	return r
 }
@@ -98,7 +110,7 @@ func message(r *http.Request) ([]byte, error) {
 		}
 		op := q.Get("operation")
 		if op == "PKIOperation" {
-			msg2, err := url.PathUnescape(msg);
+			msg2, err := url.PathUnescape(msg)
 			if err != nil {
 				return nil, err
 			}
