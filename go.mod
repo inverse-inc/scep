@@ -10,7 +10,6 @@ require (
 	github.com/gorilla/mux v1.4.0
 	github.com/groob/finalizer v0.0.0-20170707115354-4c2ed49aabda
 	github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515 // indirect
-	github.com/fdurand/scep v1.0.0
 	github.com/pkg/errors v0.8.0
 	golang.org/x/net v0.0.0-20170726083632-f5079bd7f6f7 // indirect
 	golang.org/x/sys v0.0.0-20170728174421-0f826bdd13b5 // indirect
