@@ -163,17 +163,11 @@ func run(cfg runCfg) error {
 		recipients = r
 	}
 
-	var algo int
-	if client.Supports("AES") || client.Supports("SCEPStandard") {
-		algo = pkcs7.EncryptionAlgorithmAES128GCM
-	}
-
 	tmpl := &scep.PKIMessage{
-		MessageType:             msgType,
-		Recipients:              recipients,
-		SignerKey:               key,
-		SignerCert:              signerCert,
-		SCEPEncryptionAlgorithm: algo,
+		MessageType: msgType,
+		Recipients:  recipients,
+		SignerKey:   key,
+		SignerCert:  signerCert,
 	}
 
 	if cfg.challenge != "" && msgType == scep.PKCSReq {
