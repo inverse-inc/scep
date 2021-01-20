@@ -122,6 +122,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	}
 
 	csr := msg.CSRReqMessage.CSR
+
 	id, err := generateSubjectKeyID(csr.PublicKey)
 	if err != nil {
 		return nil, err
