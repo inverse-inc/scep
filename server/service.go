@@ -11,10 +11,10 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/fdurand/scep/challenge"
-	"github.com/fdurand/scep/csrverifier"
-	"github.com/fdurand/scep/depot"
-	"github.com/fdurand/scep/scep"
+	"github.com/inverse-inc/scep/challenge"
+	"github.com/inverse-inc/scep/csrverifier"
+	"github.com/inverse-inc/scep/depot"
+	"github.com/inverse-inc/scep/scep"
 	"github.com/go-kit/kit/log"
 )
 

@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fdurand/scep/scep"
+	"github.com/inverse-inc/scep/scep"
 )
 
 func testParsePKIMessage(t *testing.T, data []byte) *scep.PKIMessage {

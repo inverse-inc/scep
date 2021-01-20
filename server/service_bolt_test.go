@@ -15,9 +15,9 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	challengestore "github.com/fdurand/scep/challenge/bolt"
-	boltdepot "github.com/fdurand/scep/depot/bolt"
-	"github.com/fdurand/scep/scep"
+	challengestore "github.com/inverse-inc/scep/challenge/bolt"
+	boltdepot "github.com/inverse-inc/scep/depot/bolt"
+	"github.com/inverse-inc/scep/scep"
 )
 
 func TestDynamicChallenge(t *testing.T) {

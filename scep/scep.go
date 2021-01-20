@@ -14,12 +14,12 @@ import (
 	"encoding/base64"
 	"math/big"
 
-	"github.com/fdurand/pkcs7"
+	"github.com/inverse-inc/pkcs7"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
 
-	"github.com/fdurand/scep/crypto/x509util"
+	"github.com/inverse-inc/scep/crypto/x509util"
 )
 
 // errors

@@ -23,11 +23,11 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/fdurand/scep/csrverifier"
-	"github.com/fdurand/scep/csrverifier/executable"
-	"github.com/fdurand/scep/depot"
-	"github.com/fdurand/scep/depot/file"
-	"github.com/fdurand/scep/server"
+	"github.com/inverse-inc/scep/csrverifier"
+	"github.com/inverse-inc/scep/csrverifier/executable"
+	"github.com/inverse-inc/scep/depot"
+	"github.com/inverse-inc/scep/depot/file"
+	"github.com/inverse-inc/scep/server"
 )
 
 // version info

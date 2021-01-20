@@ -10,7 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/fdurand/scep/crypto/x509util"
+	"github.com/inverse-inc/scep/crypto/x509util"
 )
 
 const (

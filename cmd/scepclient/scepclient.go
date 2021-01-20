@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fdurand/pkcs7"
+	"github.com/inverse-inc/pkcs7"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/fdurand/scep/client"
-	"github.com/fdurand/scep/scep"
+	"github.com/inverse-inc/scep/client"
+	"github.com/inverse-inc/scep/scep"
 	"github.com/pkg/errors"
 )
 

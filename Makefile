@@ -8,7 +8,7 @@ all: build
 	mkdir -p build
 
 gomodcheck: 
-	@go help mod > /dev/null || (@echo fdurand requires Go version 1.11 or higher && exit 1)
+	@go help mod > /dev/null || (@echo inverse-inc requires Go version 1.11 or higher && exit 1)
 
 deps: gomodcheck
 	@go mod download

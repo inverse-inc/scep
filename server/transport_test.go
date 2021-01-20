@@ -18,9 +18,9 @@ import (
 
 	kitlog "github.com/go-kit/kit/log"
 
-	"github.com/fdurand/scep/depot"
-	filedepot "github.com/fdurand/scep/depot/file"
-	scepserver "github.com/fdurand/scep/server"
+	"github.com/inverse-inc/scep/depot"
+	filedepot "github.com/inverse-inc/scep/depot/file"
+	scepserver "github.com/inverse-inc/scep/server"
 )
 
 func TestCACaps(t *testing.T) {
