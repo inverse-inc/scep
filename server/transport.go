@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 
 	kitlog "github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -169,15 +170,15 @@ const (
 )
 
 func contentHeader(op string, certNum int) string {
-	switch op {
-	case "GetCACert", "getcacert":
+	switch strings.ToLower(op) {
+	case "getcacert":
 		if certNum > 1 {
 			return certChainHeader
 		}
 		return leafHeader
-	case "PKIOperation", "pkioperation":
+	case "pkioperation":
 		return pkiOpHeader
 	default:
 		return "text/plain"
 	}
-}
+}//
