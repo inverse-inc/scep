@@ -170,12 +170,12 @@ const (
 
 func contentHeader(op string, certNum int) string {
 	switch op {
-	case "GetCACert":
+	case "GetCACert", "getcacert":
 		if certNum > 1 {
 			return certChainHeader
 		}
 		return leafHeader
-	case "PKIOperation":
+	case "PKIOperation", "pkioperation":
 		return pkiOpHeader
 	default:
 		return "text/plain"
