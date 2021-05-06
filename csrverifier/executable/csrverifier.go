@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/inverse-inc/scep/scep"
 	"github.com/go-kit/kit/log"
 )
 
@@ -44,7 +45,7 @@ type ExecutableCSRVerifier struct {
 	logger     log.Logger
 }
 
-func (v *ExecutableCSRVerifier) Verify(data []byte) (bool, error) {
+func (v *ExecutableCSRVerifier) Verify(m *scep.CSRReqMessage) (bool, error) {
 	cmd := exec.Command(v.executable)
 
 	stdin, err := cmd.StdinPipe()
@@ -54,7 +55,7 @@ func (v *ExecutableCSRVerifier) Verify(data []byte) (bool, error) {
 
 	go func() {
 		defer stdin.Close()
-		stdin.Write(data)
+		stdin.Write(m.RawDecrypted)
 	}()
 
 	err = cmd.Run()

@@ -1,15 +1,11 @@
 package main
 
 import (
-	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha1"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/asn1"
 	"encoding/pem"
-	"errors"
 	"flag"
 	"fmt"
 	"math/big"
@@ -21,19 +17,20 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/inverse-inc/scep/cryptoutil"
+	"github.com/inverse-inc/scep/csrverifier"
+	executablecsrverifier "github.com/inverse-inc/scep/csrverifier/executable"
+	scepdepot "github.com/inverse-inc/scep/depot"
+	"github.com/inverse-inc/scep/depot/file"
+	scepserver "github.com/inverse-inc/scep/server"
+
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/inverse-inc/scep/csrverifier"
-	"github.com/inverse-inc/scep/csrverifier/executable"
-	"github.com/inverse-inc/scep/depot"
-	"github.com/inverse-inc/scep/depot/file"
-	"github.com/inverse-inc/scep/server"
 )
 
 // version info
 var (
-	version = "unreleased"
-	gitHash = "unknown"
+	version = "unknown"
 )
 
 func main() {
@@ -71,8 +68,7 @@ func main() {
 
 	// print version information
 	if *flVersion {
-		fmt.Printf("scep - %v\n", version)
-		fmt.Printf("git revision - %v\n", gitHash)
+		fmt.Println(version)
 		os.Exit(0)
 	}
 	port := ":" + *flPort
@@ -94,7 +90,7 @@ func main() {
 	lginfo := level.Info(logger)
 
 	var err error
-	var depot depot.Depot // cert storage
+	var depot scepdepot.Depot // cert storage
 	{
 		depot, err = file.NewFileDepot(*flDepotPath)
 		if err != nil {
@@ -124,15 +120,28 @@ func main() {
 
 	var svc scepserver.Service // scep service
 	{
-		svcOptions := []scepserver.ServiceOption{
-			scepserver.ChallengePassword(*flChallengePassword),
-			scepserver.WithCSRVerifier(csrVerifier),
-			scepserver.CAKeyPassword([]byte(*flCAPass)),
-			scepserver.ClientValidity(clientValidity),
-			scepserver.AllowRenewal(allowRenewal),
-			scepserver.WithLogger(logger),
+		crts, key, err := depot.CA([]byte(*flCAPass))
+		if err != nil {
+			lginfo.Log("err", err)
+			os.Exit(1)
 		}
-		svc, err = scepserver.NewService(depot, svcOptions...)
+		if len(crts) < 1 {
+			lginfo.Log("err", "missing CA certificate")
+			os.Exit(1)
+		}
+		var signer scepserver.CSRSigner = scepdepot.NewSigner(
+			depot,
+			scepdepot.WithAllowRenewalDays(allowRenewal),
+			scepdepot.WithValidityDays(clientValidity),
+			scepdepot.WithCAPass(*flCAPass),
+		)
+		if *flChallengePassword != "" {
+			signer = scepserver.ChallengeMiddleware(*flChallengePassword, signer)
+		}
+		if csrVerifier != nil {
+			signer = csrverifier.Middleware(csrVerifier, signer)
+		}
+		svc, err = scepserver.NewService(crts[0], key, signer, scepserver.WithLogger(logger))
 		if err != nil {
 			lginfo.Log("err", err)
 			os.Exit(1)
@@ -255,7 +264,7 @@ func createCertificateAuthority(key *rsa.PrivateKey, years int, organization str
 
 			// activate CA
 			BasicConstraintsValid: true,
-			IsCA: true,
+			IsCA:                  true,
 			// Not allow any non-self-issued intermediate CA
 			MaxPathLen: 0,
 
@@ -272,7 +281,7 @@ func createCertificateAuthority(key *rsa.PrivateKey, years int, organization str
 		}
 	)
 
-	subjectKeyID, err := generateSubjectKeyID(&key.PublicKey)
+	subjectKeyID, err := cryptoutil.GenerateSubjectKeyID(&key.PublicKey)
 	if err != nil {
 		return err
 	}
@@ -306,35 +315,6 @@ const (
 	rsaPrivateKeyPEMBlockType = "RSA PRIVATE KEY"
 	certificatePEMBlockType   = "CERTIFICATE"
 )
-
-// rsaPublicKey reflects the ASN.1 structure of a PKCS#1 public key.
-type rsaPublicKey struct {
-	N *big.Int
-	E int
-}
-
-// GenerateSubjectKeyID generates SubjectKeyId used in Certificate
-// ID is 160-bit SHA-1 hash of the value of the BIT STRING subjectPublicKey
-func generateSubjectKeyID(pub crypto.PublicKey) ([]byte, error) {
-	var pubBytes []byte
-	var err error
-	switch pub := pub.(type) {
-	case *rsa.PublicKey:
-		pubBytes, err = asn1.Marshal(rsaPublicKey{
-			N: pub.N,
-			E: pub.E,
-		})
-		if err != nil {
-			return nil, err
-		}
-	default:
-		return nil, errors.New("only RSA public key is supported")
-	}
-
-	hash := sha1.Sum(pubBytes)
-
-	return hash[:], nil
-}
 
 func pemCert(derBytes []byte) []byte {
 	pemBlock := &pem.Block{

@@ -1,7 +1,7 @@
-FROM alpine:3.6
+FROM alpine:3
 
-COPY ./build/scepserver-linux-amd64 /usr/bin/scepserver
-COPY ./build/scepclient-linux-amd64 /usr/bin/scepclient
+COPY ./scepclient-linux-amd64 /usr/bin/scepclient
+COPY ./scepserver-linux-amd64 /usr/bin/scepserver
 
 EXPOSE 8080
 

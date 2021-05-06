@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto"
+	_ "crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -14,38 +16,40 @@ import (
 	"strings"
 	"time"
 
-	"github.com/inverse-inc/pkcs7"
+	scepclient "github.com/inverse-inc/scep/client"
+	"github.com/inverse-inc/scep/scep"
+
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/inverse-inc/scep/client"
-	"github.com/inverse-inc/scep/scep"
 	"github.com/pkg/errors"
 )
 
 // version info
 var (
-	version = "unreleased"
-	gitHash = "unknown"
+	version = "unknown"
 )
 
+const fingerprintHashType = crypto.SHA256
+
 type runCfg struct {
-	dir          string
-	csrPath      string
-	keyPath      string
-	keyBits      int
-	selfSignPath string
-	certPath     string
-	cn           string
-	org          string
-	ou           string
-	locality     string
-	province     string
-	country      string
-	challenge    string
-	serverURL    string
-	caMD5        string
-	debug        bool
-	logfmt       string
+	dir             string
+	csrPath         string
+	keyPath         string
+	keyBits         int
+	selfSignPath    string
+	certPath        string
+	cn              string
+	org             string
+	ou              string
+	locality        string
+	province        string
+	country         string
+	challenge       string
+	serverURL       string
+	caCertsSelector scep.CertsSelector
+	debug           bool
+	logfmt          string
+	caCertMsg       string
 }
 
 func run(cfg runCfg) error {
@@ -70,11 +74,6 @@ func run(cfg runCfg) error {
 		return err
 	}
 
-	sigAlgo := x509.SHA1WithRSA
-	if client.Supports("SHA-256") || client.Supports("SCEPStandard") {
-		sigAlgo = x509.SHA256WithRSA
-	}
-
 	key, err := loadOrMakeKey(cfg.keyPath, cfg.keyBits)
 	if err != nil {
 		return err
@@ -89,7 +88,6 @@ func run(cfg runCfg) error {
 		province:  cfg.province,
 		challenge: cfg.challenge,
 		key:       key,
-		sigAlgo:   sigAlgo,
 	}
 
 	csr, err := loadOrMakeCSR(cfg.csrPath, opts)
@@ -111,7 +109,7 @@ func run(cfg runCfg) error {
 		self = s
 	}
 
-	resp, certNum, err := client.GetCACert(ctx)
+	resp, certNum, err := client.GetCACert(ctx, cfg.caCertMsg)
 	if err != nil {
 		return err
 	}
@@ -122,15 +120,16 @@ func run(cfg runCfg) error {
 			if err != nil {
 				return err
 			}
-			if len(certs) < 1 {
-				return fmt.Errorf("no certificates returned")
-			}
 		} else {
 			certs, err = x509.ParseCertificates(resp)
 			if err != nil {
 				return err
 			}
 		}
+	}
+
+	if cfg.debug {
+		logCerts(level.Debug(logger), certs)
 	}
 
 	var signerCert *x509.Certificate
@@ -152,20 +151,9 @@ func run(cfg runCfg) error {
 		}
 	}
 
-	var recipients []*x509.Certificate
-	if cfg.caMD5 == "" {
-		recipients = certs
-	} else {
-		r, err := findRecipients(cfg.caMD5, certs)
-		if err != nil {
-			return err
-		}
-		recipients = r
-	}
-
 	tmpl := &scep.PKIMessage{
 		MessageType: msgType,
-		Recipients:  recipients,
+		Recipients:  certs,
 		SignerKey:   key,
 		SignerCert:  signerCert,
 	}
@@ -176,7 +164,7 @@ func run(cfg runCfg) error {
 		}
 	}
 
-	msg, err := scep.NewCSRRequest(csr, tmpl, scep.WithLogger(logger))
+	msg, err := scep.NewCSRRequest(csr, tmpl, scep.WithLogger(logger), scep.WithCertsSelector(cfg.caCertsSelector))
 	if err != nil {
 		return errors.Wrap(err, "creating csr pkiMessage")
 	}
@@ -192,7 +180,7 @@ func run(cfg runCfg) error {
 			return errors.Wrapf(err, "PKIOperation for %s", msgType)
 		}
 
-		respMsg, err = scep.ParsePKIMessage(respBytes, scep.WithLogger(logger))
+		respMsg, err = scep.ParsePKIMessage(respBytes, scep.WithLogger(logger), scep.WithCACerts(msg.Recipients))
 		if err != nil {
 			return errors.Wrapf(err, "parsing pkiMessage response %s", msgType)
 		}
@@ -228,19 +216,38 @@ func run(cfg runCfg) error {
 	return nil
 }
 
-// Determine the correct recipient based on the fingerprint.
-// In case of NDES that is the last certificate in the chain, not the RA cert.
-// Return a full chain starting with the cert that matches the fingerprint.
-func findRecipients(fingerprint string, certs []*x509.Certificate) ([]*x509.Certificate, error) {
-	fingerprint = strings.Join(strings.Split(fingerprint, " "), "")
-	fingerprint = strings.ToLower(fingerprint)
+// logCerts logs the count, number, RDN, and fingerprint of certs to logger
+func logCerts(logger log.Logger, certs []*x509.Certificate) {
+	logger.Log("msg", "cacertlist", "count", len(certs))
 	for i, cert := range certs {
-		sum := fmt.Sprintf("%x", md5.Sum(cert.Raw))
-		if sum == fingerprint {
-			return certs[i-1:], nil
-		}
+		h := fingerprintHashType.New()
+		h.Write(cert.Raw)
+		logger.Log(
+			"msg", "cacertlist",
+			"number", i,
+			"rdn", cert.Subject.ToRDNSequence().String(),
+			"hash_type", fingerprintHashType.String(),
+			"hash", fmt.Sprintf("%x", h.Sum(nil)),
+		)
 	}
-	return nil, errors.Errorf("could not find cert for md5 %s", fingerprint)
+}
+
+// validateFingerprint makes sure fingerprint looks like a hash.
+// We remove spaces and colons from fingerprint as it may come in various forms:
+//     e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+//     E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855
+//     e3b0c442 98fc1c14 9afbf4c8 996fb924 27ae41e4 649b934c a495991b 7852b855
+//     e3:b0:c4:42:98:fc:1c:14:9a:fb:f4:c8:99:6f:b9:24:27:ae:41:e4:64:9b:93:4c:a4:95:99:1b:78:52:b8:55
+func validateFingerprint(fingerprint string) (hash []byte, err error) {
+	fingerprint = strings.NewReplacer(" ", "", ":", "").Replace(fingerprint)
+	hash, err = hex.DecodeString(fingerprint)
+	if err != nil {
+		return
+	}
+	if len(hash) != fingerprintHashType.Size() {
+		err = fmt.Errorf("invalid %s hash length", fingerprintHashType)
+	}
+	return
 }
 
 func validateFlags(keyPath, serverURL string) error {
@@ -271,10 +278,11 @@ func main() {
 		flLoc               = flag.String("locality", "", "locality for certificate")
 		flProvince          = flag.String("province", "", "province for certificate")
 		flCountry           = flag.String("country", "US", "country code in certificate")
+		flCACertMessage     = flag.String("cacert-message", "", "message sent with GetCACert operation")
 
 		// in case of multiple certificate authorities, we need to figure out who the recipient of the encrypted
 		// data is.
-		flCAFingerprint = flag.String("ca-fingerprint", "", "md5 fingerprint of CA certificate for NDES server.")
+		flCAFingerprint = flag.String("ca-fingerprint", "", "SHA-256 digest of CA certificate for NDES server. Note: Changed from MD5.")
 
 		flDebugLogging = flag.Bool("debug", false, "enable debug logging")
 		flLogJSON      = flag.Bool("log-json", false, "use JSON for log output")
@@ -283,14 +291,23 @@ func main() {
 
 	// print version information
 	if *flVersion {
-		fmt.Printf("scepclient - %v\n", version)
-		fmt.Printf("git revision - %v\n", gitHash)
+		fmt.Println(version)
 		os.Exit(0)
 	}
 
 	if err := validateFlags(*flPKeyPath, *flServerURL); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
+	}
+
+	caCertsSelector := scep.NopCertsSelector()
+	if *flCAFingerprint != "" {
+		hash, err := validateFingerprint(*flCAFingerprint)
+		if err != nil {
+			fmt.Printf("invalid fingerprint: %s\n", err)
+			os.Exit(1)
+		}
+		caCertsSelector = scep.FingerprintCertsSelector(fingerprintHashType, hash)
 	}
 
 	dir := filepath.Dir(*flPKeyPath)
@@ -305,23 +322,24 @@ func main() {
 	}
 
 	cfg := runCfg{
-		dir:          dir,
-		csrPath:      csrPath,
-		keyPath:      *flPKeyPath,
-		keyBits:      *flKeySize,
-		selfSignPath: selfSignPath,
-		certPath:     *flCertPath,
-		cn:           *flCName,
-		org:          *flOrg,
-		country:      *flCountry,
-		locality:     *flLoc,
-		ou:           *flOU,
-		province:     *flProvince,
-		challenge:    *flChallengePassword,
-		serverURL:    *flServerURL,
-		caMD5:        *flCAFingerprint,
-		debug:        *flDebugLogging,
-		logfmt:       logfmt,
+		dir:             dir,
+		csrPath:         csrPath,
+		keyPath:         *flPKeyPath,
+		keyBits:         *flKeySize,
+		selfSignPath:    selfSignPath,
+		certPath:        *flCertPath,
+		cn:              *flCName,
+		org:             *flOrg,
+		country:         *flCountry,
+		locality:        *flLoc,
+		ou:              *flOU,
+		province:        *flProvince,
+		challenge:       *flChallengePassword,
+		serverURL:       *flServerURL,
+		caCertsSelector: caCertsSelector,
+		debug:           *flDebugLogging,
+		logfmt:          logfmt,
+		caCertMsg:       *flCACertMessage,
 	}
 
 	if err := run(cfg); err != nil {

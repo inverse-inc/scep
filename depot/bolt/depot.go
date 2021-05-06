@@ -2,17 +2,16 @@ package bolt
 
 import (
 	"bytes"
-	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha1"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/asn1"
 	"errors"
 	"fmt"
 	"math/big"
 	"time"
+
+	"github.com/inverse-inc/scep/cryptoutil"
 
 	"github.com/boltdb/bolt"
 )
@@ -42,6 +41,20 @@ func NewBoltDepot(db *bolt.DB) (*Depot, error) {
 	return &Depot{db}, nil
 }
 
+// For some read operations Bolt returns a direct memory reference to
+// the underlying mmap. This means that persistent references to these
+// memory locations are volatile. Make sure to copy data for places we
+// know references to this memeory will be kept.
+func bucketGetCopy(b *bolt.Bucket, key []byte) (out []byte) {
+	in := b.Get(key)
+	if in == nil {
+		return
+	}
+	out = make([]byte, len(in))
+	copy(out, in)
+	return
+}
+
 func (db *Depot) CA(pass []byte, options ...string) ([]*x509.Certificate, *rsa.PrivateKey, error) {
 	chain := []*x509.Certificate{}
 	var key *rsa.PrivateKey
@@ -51,15 +64,11 @@ func (db *Depot) CA(pass []byte, options ...string) ([]*x509.Certificate, *rsa.P
 			return fmt.Errorf("bucket %q not found!", certBucket)
 		}
 		// get ca_certificate
-		caCert := bucket.Get([]byte("ca_certificate"))
+		caCert := bucketGetCopy(bucket, []byte("ca_certificate"))
 		if caCert == nil {
 			return fmt.Errorf("no ca_certificate in bucket")
 		}
-		// we need to make a copy of the byte slice because the asn.Unmarshal
-		// method called by ParseCertificate will retain a reference to the original.
-		// The slice should no longer be referenced once the BoltDB transaction is closed.
-		caCertBytes := append([]byte(nil), caCert...)
-		cert, err := x509.ParseCertificate(caCertBytes)
+		cert, err := x509.ParseCertificate(caCert)
 		if err != nil {
 			return err
 		}
@@ -243,7 +252,7 @@ func (db *Depot) CreateOrLoadCA(key *rsa.PrivateKey, years int, org, country str
 		if bucket == nil {
 			return fmt.Errorf("bucket %q not found!", certBucket)
 		}
-		caCert := bucket.Get([]byte("ca_certificate"))
+		caCert := bucketGetCopy(bucket, []byte("ca_certificate"))
 		if caCert == nil {
 			return nil
 		}
@@ -269,7 +278,7 @@ func (db *Depot) CreateOrLoadCA(key *rsa.PrivateKey, years int, org, country str
 		CommonName:         org,
 	}
 
-	subjectKeyID, err := generateSubjectKeyID(&key.PublicKey)
+	subjectKeyID, err := cryptoutil.GenerateSubjectKeyID(&key.PublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -279,11 +288,11 @@ func (db *Depot) CreateOrLoadCA(key *rsa.PrivateKey, years int, org, country str
 		Subject:            subject,
 		NotBefore:          time.Now().Add(-600).UTC(),
 		NotAfter:           time.Now().AddDate(years, 0, 0).UTC(),
-		KeyUsage:           x509.KeyUsageCertSign,
+		KeyUsage:           x509.KeyUsageCertSign | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:        nil,
 		UnknownExtKeyUsage: nil,
 
-		BasicConstraintsValid: true,
+		BasicConstraintsValid:       true,
 		IsCA:                        true,
 		MaxPathLen:                  0,
 		SubjectKeyId:                subjectKeyID,
@@ -308,33 +317,4 @@ func (db *Depot) CreateOrLoadCA(key *rsa.PrivateKey, years int, org, country str
 		return nil, err
 	}
 	return x509.ParseCertificate(crtBytes)
-}
-
-// rsaPublicKey reflects the ASN.1 structure of a PKCS#1 public key.
-type rsaPublicKey struct {
-	N *big.Int
-	E int
-}
-
-// GenerateSubjectKeyID generates SubjectKeyId used in Certificate
-// ID is 160-bit SHA-1 hash of the value of the BIT STRING subjectPublicKey
-func generateSubjectKeyID(pub crypto.PublicKey) ([]byte, error) {
-	var pubBytes []byte
-	var err error
-	switch pub := pub.(type) {
-	case *rsa.PublicKey:
-		pubBytes, err = asn1.Marshal(rsaPublicKey{
-			N: pub.N,
-			E: pub.E,
-		})
-		if err != nil {
-			return nil, err
-		}
-	default:
-		return nil, errors.New("only RSA public key is supported")
-	}
-
-	hash := sha1.Sum(pubBytes)
-
-	return hash[:], nil
 }

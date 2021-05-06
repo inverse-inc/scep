@@ -1,10 +1,10 @@
 package scepclient
 
 import (
+	scepserver "github.com/inverse-inc/scep/server"
+
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-
-	"github.com/inverse-inc/scep/server"
 )
 
 // Client is a SCEP Client

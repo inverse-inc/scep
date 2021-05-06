@@ -57,8 +57,8 @@ func (e *Endpoints) Supports(cap string) bool {
 	return bytes.Contains(e.capabilities, []byte(cap))
 }
 
-func (e *Endpoints) GetCACert(ctx context.Context) ([]byte, int, error) {
-	request := SCEPRequest{Operation: getCACert}
+func (e *Endpoints) GetCACert(ctx context.Context, message string) ([]byte, int, error) {
+	request := SCEPRequest{Operation: getCACert, Message: []byte(message)}
 	response, err := e.GetEndpoint(ctx, request)
 	if err != nil {
 		return nil, 0, err
@@ -136,12 +136,12 @@ func MakeSCEPEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(SCEPRequest)
 		resp := SCEPResponse{operation: req.Operation}
-		switch strings.ToLower(req.Operation) {
-		case "getcacaps":
+		switch req.Operation {
+		case "GetCACaps":
 			resp.Data, resp.Err = svc.GetCACaps(ctx)
-		case "getcacert":
-			resp.Data, resp.CACertNum, resp.Err = svc.GetCACert(ctx)
-		case "pkioperation":
+		case "GetCACert":
+			resp.Data, resp.CACertNum, resp.Err = svc.GetCACert(ctx, string(req.Message))
+		case "PKIOperation":
 			resp.Data, resp.Err = svc.PKIOperation(ctx, req.Message)
 		default:
 			return nil, errors.New("operation not implemented")

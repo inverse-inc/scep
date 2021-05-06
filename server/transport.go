@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
 
 	kitlog "github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -25,24 +24,26 @@ func MakeHTTPHandler(e *Endpoints, svc Service, logger kitlog.Logger) http.Handl
 	}
 
 	r := mux.NewRouter()
-	r.Methods("GET").Path("/api/v1/scep").Handler(kithttp.NewServer(
+	r.Methods("GET").Path("/scep").Handler(kithttp.NewServer(
 		e.GetEndpoint,
 		decodeSCEPRequest,
 		encodeSCEPResponse,
 		opts...,
 	))
-	r.Methods("POST").Path("/api/v1/scep").Handler(kithttp.NewServer(
+	r.Methods("POST").Path("/scep").Handler(kithttp.NewServer(
 		e.PostEndpoint,
 		decodeSCEPRequest,
 		encodeSCEPResponse,
 		opts...,
 	))
+
 	r.Methods("GET").Path("/api/v1/scep/{id}").Handler(kithttp.NewServer(
 		e.GetEndpoint,
 		decodeSCEPRequest,
 		encodeSCEPResponse,
 		opts...,
 	))
+
 	r.Methods("POST").Path("/api/v1/scep/{id}").Handler(kithttp.NewServer(
 		e.PostEndpoint,
 		decodeSCEPRequest,
@@ -61,7 +62,12 @@ func EncodeSCEPRequest(ctx context.Context, r *http.Request, request interface{}
 	switch r.Method {
 	case "GET":
 		if len(req.Message) > 0 {
-			msg := base64.URLEncoding.EncodeToString(req.Message)
+			var msg string
+			if req.Operation == "PKIOperation" {
+				msg = base64.URLEncoding.EncodeToString(req.Message)
+			} else {
+				msg = string(req.Message)
+			}
 			params.Set("message", msg)
 		}
 		r.URL.RawQuery = params.Encode()
@@ -73,6 +79,7 @@ func EncodeSCEPRequest(ctx context.Context, r *http.Request, request interface{}
 		u := r.URL
 		u.RawQuery = params.Encode()
 		rr, err := http.NewRequest("POST", u.String(), body)
+		rr.Header.Set("Content-Type", "application/octet-stream")
 		if err != nil {
 			return errors.Wrapf(err, "creating new POST request for %s", req.Operation)
 		}
@@ -170,15 +177,15 @@ const (
 )
 
 func contentHeader(op string, certNum int) string {
-	switch strings.ToLower(op) {
-	case "getcacert":
+	switch op {
+	case "GetCACert":
 		if certNum > 1 {
 			return certChainHeader
 		}
 		return leafHeader
-	case "pkioperation":
+	case "PKIOperation":
 		return pkiOpHeader
 	default:
 		return "text/plain"
 	}
-}//
+}

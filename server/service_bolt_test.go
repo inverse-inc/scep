@@ -1,4 +1,4 @@
-package scepserver
+package scepserver_test
 
 import (
 	"bytes"
@@ -14,79 +14,48 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boltdb/bolt"
-	challengestore "github.com/inverse-inc/scep/challenge/bolt"
+	scepdepot "github.com/inverse-inc/scep/depot"
 	boltdepot "github.com/inverse-inc/scep/depot/bolt"
 	"github.com/inverse-inc/scep/scep"
+	scepserver "github.com/inverse-inc/scep/server"
+	challengestore "github.com/inverse-inc/scep/challenge/bolt"
+
+	"github.com/boltdb/bolt"
 )
 
-func TestDynamicChallenge(t *testing.T) {
-	depot := createDB(0666, nil)
-	key, err := depot.CreateOrLoadKey(2048)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = depot.CreateOrLoadCA(key, 5, "MicroMDM", "US")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	challengeDepot := createChallengeStore(0666, nil)
-	opts := []ServiceOption{
-		ClientValidity(365),
-		WithDynamicChallenges(challengeDepot),
-	}
-	svc, err := NewService(depot, opts...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	challenger := svc.(interface {
-		SCEPChallenge() (string, error)
-	})
-	challenge, err := challenger.SCEPChallenge()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	impl := svc.(*service)
-	if !impl.challengePasswordMatch(challenge) {
-		t.Errorf("challenge password does not match")
-	}
-	if impl.challengePasswordMatch(challenge) {
-		t.Errorf("challenge password matched but should only be used once")
-	}
-
-}
-
 func TestCaCert(t *testing.T) {
-	depot := createDB(0666, nil)
-	key, err := depot.CreateOrLoadKey(2048)
+	// init bolt depot CA
+	boltDepot := createDB(0666, nil)
+	key, err := boltDepot.CreateOrLoadKey(2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = boltDepot.CreateOrLoadCA(key, 5, "MicroMDM", "US")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	caCert, err := depot.CreateOrLoadCA(key, 5, "MicroMDM", "US")
+	// use exported interface
+	depot := scepdepot.Depot(boltDepot)
+
+	// load CA & key again
+	certs, key, err := depot.CA([]byte{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	caCert := certs[0]
+
+	// SCEP service
+	svc, err := scepserver.NewService(caCert, key, scepdepot.NewSigner(depot))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cacertBytes := caCert.Raw
-
-	opts := []ServiceOption{
-		ClientValidity(365),
-	}
-	svc, err := NewService(depot, opts...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	// generate scep "client" keys, csr, cert
 	selfKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	csrBytes, err := newCSR(selfKey, "ou", "loc", "province", "country", "cname", "org")
 	if err != nil {
 		t.Fatal(err)
@@ -95,15 +64,19 @@ func TestCaCert(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	signerCert, err := selfSign(selfKey, csr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	roots := x509.NewCertPool()
+	roots.AddCert(caCert)
+	var serCollector []*big.Int
+
 	ctx := context.Background()
 	for i := 0; i < 5; i++ {
-		caBytes, num, err := svc.GetCACert(ctx)
+		// check CA
+		caBytes, num, err := svc.GetCACert(ctx, "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -111,28 +84,60 @@ func TestCaCert(t *testing.T) {
 			t.Errorf("i=%d, have %d, want %d", i, have, want)
 		}
 
-		if have, want := caBytes, cacertBytes; !bytes.Equal(have, want) {
+		if have, want := caBytes, caCert.Raw; !bytes.Equal(have, want) {
 			t.Errorf("i=%d, have %v, want %v", i, have, want)
 		}
 
-		// create cert
+		// create scep "client" request
 		tmpl := &scep.PKIMessage{
 			MessageType: scep.PKCSReq,
 			Recipients:  []*x509.Certificate{caCert},
-			SignerKey:   key,
+			SignerKey:   selfKey,
 			SignerCert:  signerCert,
 		}
-
 		msg, err := scep.NewCSRRequest(csr, tmpl)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		_, err = svc.PKIOperation(ctx, msg.Raw)
+		// submit to service
+		respMsgBytes, err := svc.PKIOperation(ctx, msg.Raw)
 		if err != nil {
 			t.Fatal(err)
 		}
 
+		// read and decrypt reply
+		respMsg, err := scep.ParsePKIMessage(respMsgBytes)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = respMsg.DecryptPKIEnvelope(signerCert, selfKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// verify issued certificate is from the CA
+		respCert := respMsg.CertRepMessage.Certificate
+		opts := x509.VerifyOptions{
+			Roots:     roots,
+			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		}
+		chains, err := respCert.Verify(opts)
+		if err != nil {
+			t.Error(err)
+		}
+		if len(chains) < 1 {
+			t.Error("no established chain between issued cert and CA")
+		}
+
+		// verify unique certificate serials
+		for _, ser := range serCollector {
+			if respCert.SerialNumber.Cmp(ser) == 0 {
+				t.Error("seen serial number before!")
+			}
+		}
+		serCollector = append(serCollector, respCert.SerialNumber)
 	}
 
 }

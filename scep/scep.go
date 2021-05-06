@@ -8,18 +8,17 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha1"
 	"crypto/x509"
 	"encoding/asn1"
 	"encoding/base64"
-	"math/big"
+
+	"github.com/inverse-inc/scep/cryptoutil"
+	"github.com/inverse-inc/scep/cryptoutil/x509util"
 
 	"github.com/inverse-inc/pkcs7"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
-
-	"github.com/inverse-inc/scep/crypto/x509util"
 )
 
 // errors
@@ -144,11 +143,33 @@ func WithLogger(logger log.Logger) Option {
 	}
 }
 
+// WithCACerts adds option CA certificates to the SCEP operations.
+// Note: This changes the verification behavior of PKCS #7 messages. If this
+// option is specified, only caCerts will be used as expected signers.
+func WithCACerts(caCerts []*x509.Certificate) Option {
+	return func(c *config) {
+		c.caCerts = caCerts
+	}
+}
+
+// WithCertsSelector adds the certificates certsSelector option to the SCEP
+// operations.
+// This option is effective when used with NewCSRRequest function. In
+// this case, only certificates selected with the certsSelector will be used
+// as the PKCS #7 message recipients.
+func WithCertsSelector(selector CertsSelector) Option {
+	return func(c *config) {
+		c.certsSelector = selector
+	}
+}
+
 // Option specifies custom configuration for SCEP.
 type Option func(*config)
 
 type config struct {
-	logger log.Logger
+	logger        log.Logger
+	caCerts       []*x509.Certificate // specified if CA certificates have already been retrieved
+	certsSelector CertsSelector
 }
 
 // PKIMessage defines the possible SCEP message types
@@ -168,7 +189,7 @@ type PKIMessage struct {
 	// decrypted enveloped content
 	pkiEnvelope []byte
 
-	// Used to sign message
+	// Used to encrypt message
 	Recipients []*x509.Certificate
 
 	// Signer info
@@ -333,7 +354,6 @@ func (msg *PKIMessage) DecryptPKIEnvelope(cert *x509.Certificate, key *rsa.Priva
 		return nil
 	case PKCSReq, UpdateReq, RenewalReq:
 		csr, err := x509.ParseCertificateRequest(msg.pkiEnvelope)
-
 		if err != nil {
 			return errors.Wrap(err, "parse CSR from pkiEnvelope")
 		}
@@ -359,27 +379,27 @@ func (msg *PKIMessage) DecryptPKIEnvelope(cert *x509.Certificate, key *rsa.Priva
 func (msg *PKIMessage) Fail(crtAuth *x509.Certificate, keyAuth *rsa.PrivateKey, info FailInfo) (*PKIMessage, error) {
 	config := pkcs7.SignerInfoConfig{
 		ExtraSignedAttributes: []pkcs7.Attribute{
-			pkcs7.Attribute{
+			{
 				Type:  oidSCEPtransactionID,
 				Value: msg.TransactionID,
 			},
-			pkcs7.Attribute{
+			{
 				Type:  oidSCEPpkiStatus,
 				Value: FAILURE,
 			},
-			pkcs7.Attribute{
+			{
 				Type:  oidSCEPfailInfo,
 				Value: info,
 			},
-			pkcs7.Attribute{
+			{
 				Type:  oidSCEPmessageType,
 				Value: CertRep,
 			},
-			pkcs7.Attribute{
+			{
 				Type:  oidSCEPsenderNonce,
 				Value: msg.SenderNonce,
 			},
-			pkcs7.Attribute{
+			{
 				Type:  oidSCEPrecipientNonce,
 				Value: msg.SenderNonce,
 			},
@@ -419,24 +439,13 @@ func (msg *PKIMessage) Fail(crtAuth *x509.Certificate, keyAuth *rsa.PrivateKey, 
 
 }
 
-// SignCSR creates an x509.Certificate based on a template and Cert Authority credentials
-// returns a new PKIMessage with CertRep data
-func (msg *PKIMessage) SignCSR(crtAuth *x509.Certificate, keyAuth *rsa.PrivateKey, template *x509.Certificate) (*PKIMessage, error) {
+// Success returns a new PKIMessage with CertRep data using an already-issued certificate
+func (msg *PKIMessage) Success(crtAuth *x509.Certificate, keyAuth *rsa.PrivateKey, crt *x509.Certificate) (*PKIMessage, error) {
 	// check if CSRReqMessage has already been decrypted
 	if msg.CSRReqMessage.CSR == nil {
 		if err := msg.DecryptPKIEnvelope(crtAuth, keyAuth); err != nil {
 			return nil, err
 		}
-	}
-	// sign the CSR creating a DER encoded cert
-	crtBytes, err := x509.CreateCertificate(rand.Reader, template, crtAuth, msg.CSRReqMessage.CSR.PublicKey, keyAuth)
-	if err != nil {
-		return nil, err
-	}
-	// parse the certificate
-	crt, err := x509.ParseCertificate(crtBytes)
-	if err != nil {
-		return nil, err
 	}
 
 	// create a degenerate cert structure
@@ -454,23 +463,23 @@ func (msg *PKIMessage) SignCSR(crtAuth *x509.Certificate, keyAuth *rsa.PrivateKe
 	// PKIMessageAttributes to be signed
 	config := pkcs7.SignerInfoConfig{
 		ExtraSignedAttributes: []pkcs7.Attribute{
-			pkcs7.Attribute{
+			{
 				Type:  oidSCEPtransactionID,
 				Value: msg.TransactionID,
 			},
-			pkcs7.Attribute{
+			{
 				Type:  oidSCEPpkiStatus,
 				Value: SUCCESS,
 			},
-			pkcs7.Attribute{
+			{
 				Type:  oidSCEPmessageType,
 				Value: CertRep,
 			},
-			pkcs7.Attribute{
+			{
 				Type:  oidSCEPsenderNonce,
 				Value: msg.SenderNonce,
 			},
-			pkcs7.Attribute{
+			{
 				Type:  oidSCEPrecipientNonce,
 				Value: msg.SenderNonce,
 			},
@@ -537,13 +546,21 @@ func CACerts(data []byte) ([]*x509.Certificate, error) {
 
 // NewCSRRequest creates a scep PKI PKCSReq/UpdateReq message
 func NewCSRRequest(csr *x509.CertificateRequest, tmpl *PKIMessage, opts ...Option) (*PKIMessage, error) {
-	conf := &config{logger: log.NewNopLogger()}
+	conf := &config{logger: log.NewNopLogger(), certsSelector: NopCertsSelector()}
 	for _, opt := range opts {
 		opt(conf)
 	}
 
 	derBytes := csr.Raw
-	e7, err := pkcs7.Encrypt(derBytes, tmpl.Recipients)
+	recipients := conf.certsSelector.SelectCerts(tmpl.Recipients)
+	if len(recipients) < 1 {
+		if len(tmpl.Recipients) >= 1 {
+			// our certsSelector eliminated any CA/RA recipients
+			return nil, errors.New("no selected CA/RA recipients")
+		}
+		return nil, errors.New("no CA/RA recipients")
+	}
+	e7, err := pkcs7.Encrypt(derBytes, recipients)
 	if err != nil {
 		return nil, err
 	}
@@ -573,15 +590,15 @@ func NewCSRRequest(csr *x509.CertificateRequest, tmpl *PKIMessage, opts ...Optio
 	// PKIMessageAttributes to be signed
 	config := pkcs7.SignerInfoConfig{
 		ExtraSignedAttributes: []pkcs7.Attribute{
-			pkcs7.Attribute{
+			{
 				Type:  oidSCEPtransactionID,
 				Value: tID,
 			},
-			pkcs7.Attribute{
+			{
 				Type:  oidSCEPmessageType,
 				Value: tmpl.MessageType,
 			},
-			pkcs7.Attribute{
+			{
 				Type:  oidSCEPsenderNonce,
 				Value: sn,
 			},
@@ -608,6 +625,7 @@ func NewCSRRequest(csr *x509.CertificateRequest, tmpl *PKIMessage, opts ...Optio
 		TransactionID: tID,
 		SenderNonce:   sn,
 		CSRReqMessage: cr,
+		Recipients:    recipients,
 		logger:        conf.logger,
 	}
 
@@ -626,40 +644,11 @@ func newNonce() (SenderNonce, error) {
 
 // use public key to create a deterministric transactionID
 func newTransactionID(key crypto.PublicKey) (TransactionID, error) {
-	id, err := generateSubjectKeyID(key)
+	id, err := cryptoutil.GenerateSubjectKeyID(key)
 	if err != nil {
 		return "", err
 	}
 
 	encHash := base64.StdEncoding.EncodeToString(id)
 	return TransactionID(encHash), nil
-}
-
-// rsaPublicKey reflects the ASN.1 structure of a PKCS#1 public key.
-type rsaPublicKey struct {
-	N *big.Int
-	E int
-}
-
-// GenerateSubjectKeyID generates SubjectKeyId used in Certificate
-// ID is 160-bit SHA-1 hash of the value of the BIT STRING subjectPublicKey
-func generateSubjectKeyID(pub crypto.PublicKey) ([]byte, error) {
-	var pubBytes []byte
-	var err error
-	switch pub := pub.(type) {
-	case *rsa.PublicKey:
-		pubBytes, err = asn1.Marshal(rsaPublicKey{
-			N: pub.N,
-			E: pub.E,
-		})
-		if err != nil {
-			return nil, err
-		}
-	default:
-		return nil, errors.New("only RSA public key is supported")
-	}
-
-	hash := sha1.Sum(pubBytes)
-
-	return hash[:], nil
 }
