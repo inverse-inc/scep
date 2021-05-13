@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/inverse-inc/scep/cryptoutil"
+	"github.com/inverse-inc/scep/scep"
 
 	"github.com/boltdb/bolt"
 )
@@ -317,4 +318,12 @@ func (db *Depot) CreateOrLoadCA(key *rsa.PrivateKey, years int, org, country str
 		return nil, err
 	}
 	return x509.ParseCertificate(crtBytes)
+}
+
+func (db *Depot) SuccessNotify(cert *x509.Certificate, m *scep.CSRReqMessage, message string) {
+
+}
+
+func (db *Depot) FailureNotify(cert *x509.Certificate, m *scep.CSRReqMessage, message string) {
+
 }

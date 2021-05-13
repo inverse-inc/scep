@@ -3,6 +3,9 @@ package depot
 import (
 	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/inverse-inc/scep/cryptoutil"
@@ -16,6 +19,7 @@ type Signer struct {
 	allowRenewalDays int
 	validityDays     int
 	profile          string
+	attributes       map[string]string
 }
 
 // Option customizes Signer
@@ -32,6 +36,16 @@ func NewSigner(depot Depot, opts ...Option) *Signer {
 		opt(s)
 	}
 	return s
+}
+
+// WithCAPass specifies the password to use with an encrypted CA key
+func WithAttributes(attribs map[string]string) Option {
+	return func(s *Signer) {
+		s.attributes = make(map[string]string)
+		for k, v := range attribs {
+			s.attributes[k] = v
+		}
+	}
 }
 
 // WithCAPass specifies the password to use with an encrypted CA key
@@ -75,22 +89,36 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		return nil, err
 	}
 
+	Subject := makeSubject(m.CSR.Subject, s.attributes)
+
+	Subject.CommonName = m.CSR.Subject.CommonName
+
+	ExtKeyUsage := Extkeyusage(strings.Split(s.attributes["ExtendedKeyUsage"], "|"))
+	KeyUsage := x509.KeyUsage(Keyusage(strings.Split(s.attributes["KeyUsage"], "|")))
+
 	// create cert template
+
 	tmpl := &x509.Certificate{
-		SerialNumber: serial,
-		Subject:      m.CSR.Subject,
-		NotBefore:    time.Now().Add(-600).UTC(),
-		NotAfter:     time.Now().AddDate(0, 0, s.validityDays).UTC(),
-		SubjectKeyId: id,
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		ExtKeyUsage: []x509.ExtKeyUsage{
-			x509.ExtKeyUsageClientAuth,
-		},
+		SerialNumber:       serial,
+		Subject:            Subject,
+		NotBefore:          time.Now().Add(-600).UTC(),
+		NotAfter:           time.Now().AddDate(0, 0, s.validityDays).UTC(),
+		SubjectKeyId:       id,
+		KeyUsage:           KeyUsage,
+		ExtKeyUsage:        ExtKeyUsage,
 		SignatureAlgorithm: m.CSR.SignatureAlgorithm,
 		DNSNames:           m.CSR.DNSNames,
 		EmailAddresses:     m.CSR.EmailAddresses,
 		IPAddresses:        m.CSR.IPAddresses,
 		URIs:               m.CSR.URIs,
+	}
+
+	if len(s.attributes["OCSPUrl"]) > 0 {
+		tmpl.OCSPServer = []string{s.attributes["OCSPUrl"]}
+	}
+
+	if len(s.attributes["Email"]) > 0 {
+		tmpl.EmailAddresses = []string{s.attributes["Email"]}
 	}
 
 	caCerts, caKey, err := s.depot.CA([]byte(s.caPass), s.profile)
@@ -115,13 +143,15 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 	// less than allowRenewalDays
 	_, err = s.depot.HasCN(name, s.allowRenewalDays, crt, false, s.profile)
 	if err != nil {
+		s.depot.FailureNotify(crt, m, err.Error())
 		return nil, err
 	}
 
 	if err := s.depot.Put(name, crt, s.profile); err != nil {
+		s.depot.FailureNotify(crt, m, err.Error())
 		return nil, err
 	}
-
+	s.depot.SuccessNotify(crt, m, "Great Job")
 	return crt, nil
 }
 
@@ -130,4 +160,70 @@ func certName(crt *x509.Certificate) string {
 		return crt.Subject.CommonName
 	}
 	return string(crt.Signature)
+}
+
+func makeSubject(Subject pkix.Name, attributes map[string]string) pkix.Name {
+	var subject pkix.Name
+	for k, v := range attributes {
+		switch k {
+		case "Organization":
+			subject.Organization = []string{v}
+			if len(Subject.Organization) > 0 {
+				subject.Organization = Subject.Organization
+			}
+		case "OrganizationalUnit":
+			subject.OrganizationalUnit = []string{v}
+			if len(Subject.OrganizationalUnit) > 0 {
+				subject.OrganizationalUnit = Subject.OrganizationalUnit
+			}
+		case "Country":
+			subject.Country = []string{v}
+			if len(Subject.Country) > 0 {
+				subject.Country = Subject.Country
+			}
+		case "State":
+			subject.Province = []string{v}
+			if len(Subject.Province) > 0 {
+				subject.Province = Subject.Province
+			}
+		case "Locality":
+			subject.Locality = []string{v}
+			if len(Subject.Locality) > 0 {
+				subject.Locality = Subject.Locality
+			}
+		case "StreetAddress":
+			subject.StreetAddress = []string{v}
+			if len(Subject.StreetAddress) > 0 {
+				subject.StreetAddress = Subject.StreetAddress
+			}
+		case "PostalCode":
+			subject.PostalCode = []string{v}
+			if len(Subject.PostalCode) > 0 {
+				subject.PostalCode = Subject.PostalCode
+			}
+		}
+	}
+	return subject
+}
+
+func Extkeyusage(ExtendedKeyUsage []string) []x509.ExtKeyUsage {
+
+	// Set up extra key uses for certificate
+	extKeyUsage := make([]x509.ExtKeyUsage, 0)
+	for _, use := range ExtendedKeyUsage {
+		if use != "" {
+			v, _ := strconv.Atoi(use)
+			extKeyUsage = append(extKeyUsage, x509.ExtKeyUsage(v))
+		}
+	}
+	return extKeyUsage
+}
+
+func Keyusage(KeyUsage []string) int {
+	keyUsage := 0
+	for _, use := range KeyUsage {
+		v, _ := strconv.Atoi(use)
+		keyUsage = keyUsage | v
+	}
+	return keyUsage
 }

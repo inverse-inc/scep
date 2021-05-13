@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/inverse-inc/scep/scep"
 )
 
 // NewFileDepot returns a new cert depot.
@@ -407,4 +409,12 @@ func pemCert(derBytes []byte) []byte {
 	}
 	out := pem.EncodeToMemory(pemBlock)
 	return out
+}
+
+func (d *fileDepot) SuccessNotify(cert *x509.Certificate, m *scep.CSRReqMessage, message string) {
+
+}
+
+func (d *fileDepot) FailureNotify(cert *x509.Certificate, m *scep.CSRReqMessage, message string) {
+
 }
