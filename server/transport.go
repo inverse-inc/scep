@@ -51,6 +51,48 @@ func MakeHTTPHandler(e *Endpoints, svc Service, logger kitlog.Logger) http.Handl
 		opts...,
 	))
 
+	r.Methods("GET").Path("/api/v1/pki/scep/{id}").Handler(kithttp.NewServer(
+                e.GetEndpoint,
+                decodeSCEPRequest,
+                encodeSCEPResponse,
+                opts...,
+        ))
+
+        r.Methods("POST").Path("/api/v1/pki/scep/{id}").Handler(kithttp.NewServer(
+                e.PostEndpoint,
+                decodeSCEPRequest,
+                encodeSCEPResponse,
+                opts...,
+        ))
+
+        r.Methods("GET").Path("/api/v1/scep/{id}/pkiclient.exe").Handler(kithttp.NewServer(
+                e.GetEndpoint,
+                decodeSCEPRequest,
+                encodeSCEPResponse,
+                opts...,
+        ))
+
+        r.Methods("POST").Path("/api/v1/scep/{id}/pkiclient.exe").Handler(kithttp.NewServer(
+                e.PostEndpoint,
+                decodeSCEPRequest,
+                encodeSCEPResponse,
+                opts...,
+        ))
+
+	r.Methods("GET").Path("/api/v1/pki/scep/{id}/pkiclient.exe").Handler(kithttp.NewServer(
+                e.GetEndpoint,
+                decodeSCEPRequest,
+                encodeSCEPResponse,
+                opts...,
+        ))
+
+        r.Methods("POST").Path("/api/v1/pki/scep/{id}/pkiclient.exe").Handler(kithttp.NewServer(
+                e.PostEndpoint,
+                decodeSCEPRequest,
+                encodeSCEPResponse,
+                opts...,
+        ))
+
 	return r
 }
 
