@@ -111,6 +111,7 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		EmailAddresses:     m.CSR.EmailAddresses,
 		IPAddresses:        m.CSR.IPAddresses,
 		URIs:               m.CSR.URIs,
+		ExtraExtensions:    m.CSR.ExtraExtensions,
 	}
 
 	if len(s.attributes["OCSPUrl"]) > 0 {
