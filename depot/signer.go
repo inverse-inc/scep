@@ -38,7 +38,7 @@ func NewSigner(depot Depot, opts ...Option) *Signer {
 	return s
 }
 
-// WithCAPass specifies the password to use with an encrypted CA key
+// WithAttributes specifies the attributes to use.
 func WithAttributes(attribs map[string]string) Option {
 	return func(s *Signer) {
 		s.attributes = make(map[string]string)
@@ -79,6 +79,7 @@ func WithProfile(profile string) Option {
 
 // SignCSR signs a certificate using Signer's Depot CA
 func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
+
 	id, err := cryptoutil.GenerateSubjectKeyID(m.CSR.PublicKey)
 	if err != nil {
 		return nil, err
@@ -88,9 +89,7 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	Subject := makeSubject(m.CSR.Subject, s.attributes)
-
 	Subject.CommonName = m.CSR.Subject.CommonName
 
 	ExtKeyUsage := Extkeyusage(strings.Split(s.attributes["ExtendedKeyUsage"], "|"))
@@ -164,47 +163,40 @@ func certName(crt *x509.Certificate) string {
 }
 
 func makeSubject(Subject pkix.Name, attributes map[string]string) pkix.Name {
-	var subject pkix.Name
+
 	for k, v := range attributes {
 		switch k {
 		case "Organization":
-			subject.Organization = []string{v}
-			if len(Subject.Organization) > 0 {
-				subject.Organization = Subject.Organization
+			if len(v) > 0 {
+				Subject.Organization = []string{v}
 			}
 		case "OrganizationalUnit":
-			subject.OrganizationalUnit = []string{v}
-			if len(Subject.OrganizationalUnit) > 0 {
-				subject.OrganizationalUnit = Subject.OrganizationalUnit
+			if len(v) > 0 {
+				Subject.OrganizationalUnit = []string{v}
 			}
 		case "Country":
-			subject.Country = []string{v}
-			if len(Subject.Country) > 0 {
-				subject.Country = Subject.Country
+			if len(v) > 0 {
+				Subject.Country = []string{v}
 			}
 		case "State":
-			subject.Province = []string{v}
-			if len(Subject.Province) > 0 {
-				subject.Province = Subject.Province
+			if len(v) > 0 {
+				Subject.Province = []string{v}
 			}
 		case "Locality":
-			subject.Locality = []string{v}
-			if len(Subject.Locality) > 0 {
-				subject.Locality = Subject.Locality
+			if len(v) > 0 {
+				Subject.Locality = []string{v}
 			}
 		case "StreetAddress":
-			subject.StreetAddress = []string{v}
-			if len(Subject.StreetAddress) > 0 {
-				subject.StreetAddress = Subject.StreetAddress
+			if len(v) > 0 {
+				Subject.StreetAddress = []string{v}
 			}
 		case "PostalCode":
-			subject.PostalCode = []string{v}
-			if len(Subject.PostalCode) > 0 {
-				subject.PostalCode = Subject.PostalCode
+			if len(v) > 0 {
+				Subject.PostalCode = []string{v}
 			}
 		}
 	}
-	return subject
+	return Subject
 }
 
 func Extkeyusage(ExtendedKeyUsage []string) []x509.ExtKeyUsage {
