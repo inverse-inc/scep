@@ -117,8 +117,8 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		tmpl.OCSPServer = []string{s.attributes["OCSPUrl"]}
 	}
 
-	if len(s.attributes["Email"]) > 0 {
-		tmpl.EmailAddresses = []string{s.attributes["Email"]}
+	if len(s.attributes["Mail"]) > 0 {
+		tmpl.EmailAddresses = []string{s.attributes["Mail"]}
 	}
 
 	caCerts, caKey, err := s.depot.CA([]byte(s.caPass), s.profile)
