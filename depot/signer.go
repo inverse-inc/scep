@@ -97,7 +97,7 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 
 	// create cert template
 	v, _ := strconv.Atoi(s.attributes["Digest"])
-	SignatureAlgorithm = x509.SignatureAlgorithm(v)
+	SignatureAlgorithm := x509.SignatureAlgorithm(v)
 	tmpl := &x509.Certificate{
 		SerialNumber:       serial,
 		Subject:            Subject,
