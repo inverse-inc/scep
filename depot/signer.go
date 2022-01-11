@@ -105,7 +105,7 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		SubjectKeyId:       id,
 		KeyUsage:           KeyUsage,
 		ExtKeyUsage:        ExtKeyUsage,
-		SignatureAlgorithm: m.CSR.SignatureAlgorithm,
+		SignatureAlgorithm: s.attributes["Digest"],
 		DNSNames:           m.CSR.DNSNames,
 		EmailAddresses:     m.CSR.EmailAddresses,
 		IPAddresses:        m.CSR.IPAddresses,
