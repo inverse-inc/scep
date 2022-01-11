@@ -96,7 +96,8 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 	KeyUsage := x509.KeyUsage(Keyusage(strings.Split(s.attributes["KeyUsage"], "|")))
 
 	// create cert template
-
+	v, _ := strconv.Atoi(use)
+	SignatureAlgorithm = x509.SignatureAlgorithm(v)
 	tmpl := &x509.Certificate{
 		SerialNumber:       serial,
 		Subject:            Subject,
