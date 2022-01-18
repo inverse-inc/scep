@@ -98,6 +98,7 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 	// create cert template
 	v, _ := strconv.Atoi(s.attributes["Digest"])
 	SignatureAlgorithm := x509.SignatureAlgorithm(v)
+
 	tmpl := &x509.Certificate{
 		SerialNumber:       serial,
 		Subject:            Subject,
@@ -111,7 +112,7 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		EmailAddresses:     m.CSR.EmailAddresses,
 		IPAddresses:        m.CSR.IPAddresses,
 		URIs:               m.CSR.URIs,
-		ExtraExtensions:    m.CSR.ExtraExtensions,
+		ExtraExtensions:    m.CSR.Extensions,
 	}
 
 	if len(s.attributes["OCSPUrl"]) > 0 {
