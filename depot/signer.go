@@ -99,6 +99,14 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 	v, _ := strconv.Atoi(s.attributes["Digest"])
 	SignatureAlgorithm := x509.SignatureAlgorithm(v)
 
+	var ExtraExtensions []pkix.Extension
+
+	for _, v := range m.CSR.Extensions {
+		if v.Id.String() != "2.5.29.37" {
+			ExtraExtensions = append(ExtraExtensions, v)
+		}
+	}
+
 	tmpl := &x509.Certificate{
 		SerialNumber:       serial,
 		Subject:            Subject,
@@ -112,7 +120,7 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		EmailAddresses:     m.CSR.EmailAddresses,
 		IPAddresses:        m.CSR.IPAddresses,
 		URIs:               m.CSR.URIs,
-		ExtraExtensions:    m.CSR.Extensions,
+		ExtraExtensions:    ExtraExtensions,
 	}
 
 	if len(s.attributes["OCSPUrl"]) > 0 {
