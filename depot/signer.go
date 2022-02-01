@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -311,4 +313,3 @@ func forEachSAN(extension []byte, attributes map[string]string) (pkix.Extension,
 
 	return extSubjectAltName, nil
 }
-
