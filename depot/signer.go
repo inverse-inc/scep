@@ -120,8 +120,8 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 	tmpl := &x509.Certificate{
 		SerialNumber:       serial,
 		Subject:            Subject,
-		NotBefore:          time.Now().Add(-600).UTC(),
-		NotAfter:           time.Now().AddDate(0, 0, s.validityDays).UTC(),
+		NotBefore:          Bod(time.Now().Add(-600).UTC()),
+		NotAfter:           Bod(time.Now().AddDate(0, 0, s.validityDays+1).UTC()),
 		SubjectKeyId:       id,
 		KeyUsage:           KeyUsage,
 		ExtKeyUsage:        ExtKeyUsage,
@@ -312,4 +312,9 @@ func forEachSAN(extension []byte, attributes map[string]string) (pkix.Extension,
 	}
 
 	return extSubjectAltName, nil
+}
+
+func Bod(t time.Time) time.Time {
+	year, month, day := t.Date()
+	return time.Date(year, month, day, 0, 0, 0, 0, t.Location())
 }
