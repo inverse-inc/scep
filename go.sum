@@ -12,6 +12,8 @@ github.com/gorilla/mux v1.4.0/go.mod h1:1lud6UwP+6orDFRuTfBEV8e9/aOM/c4fVVCaMa2z
 github.com/groob/finalizer v0.0.0-20170707115354-4c2ed49aabda/go.mod h1:MyndkAZd5rUMdNogn35MWXBX1UiBigrU8eTj8DoAC2c=
 github.com/inverse-inc/pkcs7 v0.0.0-20210506124822-140ab7b963b3 h1:YAWsp7d4RknQd5gZJRo7yxTge444bTKOYmC0nj7OR1I=
 github.com/inverse-inc/pkcs7 v0.0.0-20210506124822-140ab7b963b3/go.mod h1:adBgAyadl5D9Mz9rhkQyzZpwcUK9eXdKslXH4oImbB0=
+github.com/inverse-inc/pkcs7 v0.0.0-20221007184446-739fb7dad187 h1:A+ZfM+eDbeozZvMg7mEjw6Wo9IgPKs3ex/EQ4HxuFLE=
+github.com/inverse-inc/pkcs7 v0.0.0-20221007184446-739fb7dad187/go.mod h1:EfeT8OW+dVA+SNdc/FVftfHU+v7vu5vMckVQSxq9CJA=
 github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515/go.mod h1:+0opPa2QZZtGFBFZlji/RkVcI2GknAs/DXo4wKdlNEc=
 github.com/pkg/errors v0.8.0 h1:WdK/asTD0HN+q6hsWO3/vpuAkAr+tw6aNJNDFFf0+qw=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
