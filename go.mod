@@ -6,7 +6,7 @@ require (
 	github.com/boltdb/bolt v1.3.1
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-kit/kit v0.4.0
-	github.com/go-logfmt/logfmt v0.3.0 // indirect
+	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-stack/stack v1.6.0 // indirect
 	github.com/gorilla/context v0.0.0-20160226214623-1ea25387ff6f // indirect
 	github.com/gorilla/mux v1.4.0
