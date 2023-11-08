@@ -153,7 +153,7 @@ type Creater func(*x509.Certificate, *rsa.PrivateKey, CSRSigner, ...ServiceOptio
 
 var serviceLookup = map[string]Creater{
 	"server": NewService,
-	// "proxy":  NewProxyService,
+	"proxy":  NewProxyService,
 }
 
 // Create function
@@ -163,4 +163,3 @@ func Create(serverType string, crt *x509.Certificate, key *rsa.PrivateKey, signe
 	}
 	return nil, fmt.Errorf("Service type of %s not found", serverType)
 }
-
