@@ -96,40 +96,7 @@ func (svc *proxyservice) PKIOperation(ctx context.Context, data []byte) ([]byte,
 		break // on scep.SUCCESS
 	}
 
-	// if err := respMsg.DecryptPKIEnvelope(signerCert, key); err != nil {
-	// 	return errors.Wrapf(err, "decrypt pkiEnvelope, msgType: %s, status %s", msgType, respMsg.PKIStatus)
-	// }
-
-	// respCert := respMsg.CertRepMessage.Certificate
-	// if err := ioutil.WriteFile(cfg.certPath, pemCert(respCert.Raw), 0666); err != nil {
-	// 	return err
-	// }
-
-	// // remove self signer if used
-	// if self != nil {
-	// 	if err := os.Remove(cfg.selfSignPath); err != nil {
-	// 		return err
-	// 	}
-	// }
-
 	return msg.Raw, err
-
-	// var msgType scep.MessageType
-	// msgType = scep.PKCSReq
-
-	// crt, err := svc.signer.SignCSR(msg.CSRReqMessage)
-
-	// if err == nil && crt == nil {
-	// 	err = errors.New("no signed certificate")
-	// }
-	// if err != nil {
-	// 	svc.debugLogger.Log("msg", "failed to sign CSR", "err", err)
-	// 	certRep, err := msg.Fail(svc.crt, svc.key, scep.BadRequest)
-	// 	return certRep.Raw, err
-	// }
-
-	// certRep, err := msg.Success(svc.crt, svc.key, crt)
-	// return certRep.Raw, err
 }
 
 func (svc *proxyservice) GetNextCACert(ctx context.Context) ([]byte, error) {
@@ -138,17 +105,13 @@ func (svc *proxyservice) GetNextCACert(ctx context.Context) ([]byte, error) {
 
 // NewProxyService creates a new scep proxy service
 func NewProxyService(crt *x509.Certificate, key *rsa.PrivateKey, signer CSRSigner, opts ...ServiceOption) (Service, error) {
-	s := &service{
+	s := &proxyservice{
 		crt:         crt,
 		key:         key,
 		signer:      signer,
 		debugLogger: log.NewNopLogger(),
 	}
-	for _, opt := range opts {
-		if err := opt(s); err != nil {
-			return nil, err
-		}
-	}
+
 	return s, nil
 }
 
@@ -171,4 +134,8 @@ func NewClient(
 	endpoints.GetEndpoint = EndpointLoggingMiddleware(logger)(endpoints.GetEndpoint)
 	endpoints.PostEndpoint = EndpointLoggingMiddleware(logger)(endpoints.PostEndpoint)
 	return endpoints, nil
+}
+
+func (svc *proxyservice) WithAddProxy(url string) {
+	svc.url = url
 }

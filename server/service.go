@@ -124,14 +124,6 @@ func WithAddlCA(ca *x509.Certificate) ServiceOption {
 	}
 }
 
-// WithAddlCA appends an additional certificate to the slice of CA certs
-func WithAddProxy(url string) ServiceOption {
-	return func(s *service) error {
-		s.url = url
-		return nil
-	}
-}
-
 // NewService creates a new scep service
 func NewService(crt *x509.Certificate, key *rsa.PrivateKey, signer CSRSigner, opts ...ServiceOption) (Service, error) {
 	s := &service{
