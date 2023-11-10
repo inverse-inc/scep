@@ -74,7 +74,7 @@ func (svc *proxyservice) PKIOperation(ctx context.Context, data []byte) ([]byte,
 		// loop in case we get a PENDING response which requires
 		// a manual approval.
 
-		respBytes, err := client.PKIOperation(ctx, msg.Raw)
+		respBytes, err := client.PKIOperation(ctx, data)
 		if err != nil {
 			return nil, errors.Wrapf(err, "PKIOperation for %s", msg.MessageType)
 		}
