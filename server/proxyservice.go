@@ -7,8 +7,6 @@ import (
 
 	// "errors"
 
-	"time"
-
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/inverse-inc/scep/scep"
@@ -60,7 +58,6 @@ func (svc *proxyservice) PKIOperation(ctx context.Context, data []byte) ([]byte,
 	if err != nil {
 		return nil, err
 	}
-	lginfo := level.Info(svc.debugLogger)
 
 	// Create the CSR client
 	client, err := NewClient(svc.url, svc.debugLogger)
@@ -68,35 +65,11 @@ func (svc *proxyservice) PKIOperation(ctx context.Context, data []byte) ([]byte,
 		return nil, err
 	}
 
-	var respMsg *scep.PKIMessage
-
-	for {
-		// loop in case we get a PENDING response which requires
-		// a manual approval.
-
-		respBytes, err := client.PKIOperation(ctx, data)
-		if err != nil {
-			return nil, errors.Wrapf(err, "PKIOperation for %s", msg.MessageType)
-		}
-
-		respMsg, err = scep.ParsePKIMessage(respBytes, scep.WithLogger(svc.debugLogger), scep.WithCACerts(msg.Recipients))
-		if err != nil {
-			return nil, errors.Wrapf(err, "parsing pkiMessage response %s", msg.MessageType)
-		}
-
-		switch respMsg.PKIStatus {
-		case scep.FAILURE:
-			return nil, errors.Errorf("%s request failed, failInfo: %s", msg.MessageType, respMsg.FailInfo)
-		case scep.PENDING:
-			lginfo.Log("pkiStatus", "PENDING", "msg", "sleeping for 30 seconds, then trying again.")
-			time.Sleep(30 * time.Second)
-			continue
-		}
-		lginfo.Log("pkiStatus", "SUCCESS", "msg", "server returned a certificate.")
-		break // on scep.SUCCESS
+	respBytes, err := client.PKIOperation(ctx, data)
+	if err != nil {
+		return nil, errors.Wrapf(err, "PKIOperation for %s", msg.MessageType)
 	}
-
-	return msg.Raw, err
+	return respBytes, err
 }
 
 func (svc *proxyservice) GetNextCACert(ctx context.Context) ([]byte, error) {
