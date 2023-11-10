@@ -32,6 +32,9 @@ type Service interface {
 	// when the old one expires. The response format is a PKCS#7 Degenerate
 	// Certificates type.
 	GetNextCACert(ctx context.Context) ([]byte, error)
+
+	// Set the URL to proxy to
+	WithAddProxy(ctx context.Context, url string)
 }
 
 type service struct {
@@ -154,4 +157,8 @@ func Create(serverType string, crt *x509.Certificate, key *rsa.PrivateKey, signe
 		return creater(crt, key, signer, opts...)
 	}
 	return nil, fmt.Errorf("Service type of %s not found", serverType)
+}
+
+func (svc *service) WithAddProxy(ctx context.Context, url string) {
+	svc.url = url
 }

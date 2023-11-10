@@ -136,6 +136,6 @@ func NewClient(
 	return endpoints, nil
 }
 
-func (svc *proxyservice) WithAddProxy(url string) {
+func (svc *proxyservice) WithAddProxy(ctx context.Context, url string) {
 	svc.url = url
 }
