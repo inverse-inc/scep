@@ -94,6 +94,9 @@ func (e *Endpoints) GetNextCACert(ctx context.Context) ([]byte, error) {
 	return resp.Data, resp.Err
 }
 
+func (e *Endpoints) WithAddProxy(ctx context.Context, url string) {
+}
+
 func MakeServerEndpoints(svc Service) *Endpoints {
 	e := MakeSCEPEndpoint(svc)
 	return &Endpoints{

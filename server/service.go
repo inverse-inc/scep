@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"errors"
+	"fmt"
 
 	"github.com/inverse-inc/scep/scep"
 
@@ -31,6 +32,9 @@ type Service interface {
 	// when the old one expires. The response format is a PKCS#7 Degenerate
 	// Certificates type.
 	GetNextCACert(ctx context.Context) ([]byte, error)
+
+	// Set the URL to proxy to
+	WithAddProxy(ctx context.Context, url string)
 }
 
 type service struct {
@@ -49,8 +53,11 @@ type service struct {
 	// issuance, RA proxying, etc.
 	signer CSRSigner
 
-	/// info logging is implemented in the service middleware layer.
+	// info logging is implemented in the service middleware layer.
 	debugLogger log.Logger
+
+	// The URL where the SCEP request needs to be proxy
+	url string
 }
 
 func (svc *service) GetCACaps(ctx context.Context) ([]byte, error) {
@@ -82,6 +89,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	}
 
 	crt, err := svc.signer.SignCSR(msg.CSRReqMessage)
+
 	if err == nil && crt == nil {
 		err = errors.New("no signed certificate")
 	}
@@ -133,4 +141,24 @@ func NewService(crt *x509.Certificate, key *rsa.PrivateKey, signer CSRSigner, op
 		}
 	}
 	return s, nil
+}
+
+// Creater function
+type Creater func(*x509.Certificate, *rsa.PrivateKey, CSRSigner, ...ServiceOption) (Service, error)
+
+var serviceLookup = map[string]Creater{
+	"server": NewService,
+	"proxy":  NewProxyService,
+}
+
+// Create function
+func Create(serverType string, crt *x509.Certificate, key *rsa.PrivateKey, signer CSRSigner, opts ...ServiceOption) (Service, error) {
+	if creater, found := serviceLookup[serverType]; found {
+		return creater(crt, key, signer, opts...)
+	}
+	return nil, fmt.Errorf("Service type of %s not found", serverType)
+}
+
+func (svc *service) WithAddProxy(ctx context.Context, url string) {
+	svc.url = url
 }
