@@ -61,7 +61,7 @@ type service struct {
 }
 
 func (svc *service) GetCACaps(ctx context.Context) ([]byte, error) {
-	defaultCaps := []byte("Renewal\nSHA-1\nSHA-256\nAES\nDES3\nSCEPStandard\nPOSTPKIOperation")
+	defaultCaps := []byte("Renewal\nSHA-1\nSHA-256\nAES\nSCEPStandard\nPOSTPKIOperation")
 	return defaultCaps, nil
 }
 
