@@ -133,6 +133,7 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		URIs:               m.CSR.URIs,
 		ExtraExtensions:    ExtraExtensions,
 	}
+	spew.Dump(s.attributes)
 	spew.Dump(tmpl)
 	if len(s.attributes["OCSPUrl"]) > 0 {
 		tmpl.OCSPServer = []string{s.attributes["OCSPUrl"]}
