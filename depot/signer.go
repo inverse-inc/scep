@@ -133,12 +133,7 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		URIs:               m.CSR.URIs,
 		ExtraExtensions:    ExtraExtensions,
 	}
-	spew.Dump(m.CSR.DNSNames)
-	spew.Dump(m.CSR.EmailAddresses)
-	spew.Dump(m.CSR.IPAddresses)
-	spew.Dump(m.CSR.URIs)
-	spew.Dump(s.attributes)
-	spew.Dump(tmpl)
+	spew.Dump(m.CSR)
 	if len(s.attributes["OCSPUrl"]) > 0 {
 		tmpl.OCSPServer = []string{s.attributes["OCSPUrl"]}
 	}
@@ -146,7 +141,6 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 	if tmpl.EmailAddresses == nil && len(s.attributes["Mail"]) > 0 {
 		tmpl.EmailAddresses = []string{s.attributes["Mail"]}
 	}
-	spew.Dump(tmpl)
 	caCerts, caKey, err := s.depot.CA([]byte(s.caPass), s.profile)
 	if err != nil {
 		return nil, err
