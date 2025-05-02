@@ -137,7 +137,7 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		tmpl.OCSPServer = []string{s.attributes["OCSPUrl"]}
 	}
 
-	if len(s.attributes["Mail"]) > 0 {
+	if tmpl.EmailAddresses == nil && len(s.attributes["Mail"]) > 0 {
 		tmpl.EmailAddresses = []string{s.attributes["Mail"]}
 	}
 
