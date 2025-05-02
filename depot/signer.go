@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/inverse-inc/scep/cryptoutil"
 	"github.com/inverse-inc/scep/scep"
 )
@@ -132,7 +133,7 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		URIs:               m.CSR.URIs,
 		ExtraExtensions:    ExtraExtensions,
 	}
-
+	spew.Dump(tmpl)
 	if len(s.attributes["OCSPUrl"]) > 0 {
 		tmpl.OCSPServer = []string{s.attributes["OCSPUrl"]}
 	}
@@ -140,7 +141,7 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 	if tmpl.EmailAddresses == nil && len(s.attributes["Mail"]) > 0 {
 		tmpl.EmailAddresses = []string{s.attributes["Mail"]}
 	}
-
+	spew.Dump(tmpl)
 	caCerts, caKey, err := s.depot.CA([]byte(s.caPass), s.profile)
 	if err != nil {
 		return nil, err
@@ -318,3 +319,4 @@ func Bod(t time.Time) time.Time {
 	year, month, day := t.Date()
 	return time.Date(year, month, day, 0, 0, 0, 0, t.Location())
 }
+
