@@ -36,7 +36,7 @@ type fileDepot struct {
 	dirPath string
 }
 
-func (d *fileDepot) CA(pass []byte, options ...string) ([]*x509.Certificate, *rsa.PrivateKey, error) {
+func (d *fileDepot) CA(pass []byte, options ...string) ([]*x509.Certificate, scep.PrivateKey, error) {
 	caPEM, err := d.getFile("ca.pem")
 	if err != nil {
 		return nil, nil, err

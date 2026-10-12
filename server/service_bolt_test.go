@@ -39,14 +39,14 @@ func TestCaCert(t *testing.T) {
 	depot := scepdepot.Depot(boltDepot)
 
 	// load CA & key again
-	certs, key, err := depot.CA([]byte{})
+	certs, caKey, err := depot.CA([]byte{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	caCert := certs[0]
 
 	// SCEP service
-	svc, err := scepserver.NewService(caCert, key, scepdepot.NewSigner(depot))
+	svc, err := scepserver.NewService(caCert, caKey, scepdepot.NewSigner(depot))
 	if err != nil {
 		t.Fatal(err)
 	}

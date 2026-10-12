@@ -2,7 +2,6 @@ package scepserver
 
 import (
 	"context"
-	"crypto/rsa"
 	"crypto/x509"
 
 	// "errors"
@@ -18,7 +17,7 @@ type proxyservice struct {
 	// quite likely the same as the CA keypair but may be its own SCEP
 	// specific keypair in the case of e.g. RA (proxy) operation.
 	crt *x509.Certificate
-	key *rsa.PrivateKey
+	key scep.PrivateKey
 
 	// Optional additional CA certificates for e.g. RA (proxy) use.
 	// Only used in this service when responding to GetCACert.
@@ -77,7 +76,7 @@ func (svc *proxyservice) GetNextCACert(ctx context.Context) ([]byte, error) {
 }
 
 // NewProxyService creates a new scep proxy service
-func NewProxyService(crt *x509.Certificate, key *rsa.PrivateKey, signer CSRSigner, opts ...ServiceOption) (Service, error) {
+func NewProxyService(crt *x509.Certificate, key scep.PrivateKey, signer CSRSigner, opts ...ServiceOption) (Service, error) {
 	s := &proxyservice{
 		crt:         crt,
 		key:         key,

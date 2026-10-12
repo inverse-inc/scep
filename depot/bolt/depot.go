@@ -56,7 +56,7 @@ func bucketGetCopy(b *bolt.Bucket, key []byte) (out []byte) {
 	return
 }
 
-func (db *Depot) CA(pass []byte, options ...string) ([]*x509.Certificate, *rsa.PrivateKey, error) {
+func (db *Depot) CA(pass []byte, options ...string) ([]*x509.Certificate, scep.PrivateKey, error) {
 	chain := []*x509.Certificate{}
 	var key *rsa.PrivateKey
 	err := db.View(func(tx *bolt.Tx) error {
