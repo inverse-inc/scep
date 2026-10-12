@@ -25,6 +25,10 @@ github.com/inverse-inc/pkcs7 v0.0.0-20221011155655-51be0ad8dcc6 h1:03CrR/x07mHUi
 github.com/inverse-inc/pkcs7 v0.0.0-20221011155655-51be0ad8dcc6/go.mod h1:YpgbKtIsXbTjq1C1GRvWFx54BcMcHdKFfdhXNrqHMKM=
 github.com/inverse-inc/pkcs7 v0.0.0-20221012121123-778f83870ec7 h1:1wjwpitH5JfZ4cAwRqGvB2Affb61SlGvROBzJla25dM=
 github.com/inverse-inc/pkcs7 v0.0.0-20221012121123-778f83870ec7/go.mod h1:adBgAyadl5D9Mz9rhkQyzZpwcUK9eXdKslXH4oImbB0=
+github.com/inverse-inc/pkcs7 v0.0.0-20261012132123-ca16b941685f h1:pQ4HdAUDLEneQdlEEl9Qxa8KYvEbRzj1M91WT3pFNa8=
+github.com/inverse-inc/pkcs7 v0.0.0-20261012132123-ca16b941685f/go.mod h1:adBgAyadl5D9Mz9rhkQyzZpwcUK9eXdKslXH4oImbB0=
+github.com/inverse-inc/pkcs7 v0.0.0-20261012132313-77fb79842abb h1:4r+5UYle1LFJil4cbOKg9Vn4vAVOYvyZ8TZjMYjfpVM=
+github.com/inverse-inc/pkcs7 v0.0.0-20261012132313-77fb79842abb/go.mod h1:adBgAyadl5D9Mz9rhkQyzZpwcUK9eXdKslXH4oImbB0=
 github.com/inverse-inc/scep v0.0.0-20221007185838-e978f1bf6b97/go.mod h1:Fa0J36nMSxuIXVSy4t53wLfIQGhBW836i5m5X3X+42Q=
 github.com/inverse-inc/scep v0.0.0-20221011144128-526c40a62654/go.mod h1:WdB4qHIRodosWy7g8gpL9Bb6i/+pSJOpTk8WJy3MQjM=
 github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515 h1:T+h1c/A9Gawja4Y9mFVWj2vyii2bbUNDw3kt9VxK2EY=

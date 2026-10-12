@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"encoding/asn1"
 	"encoding/base64"
@@ -20,6 +19,14 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/pkg/errors"
 )
+
+// PrivateKey is the key the SCEP server decrypts requests and signs
+// responses with: an *rsa.PrivateKey, or an RSA key that can't be
+// exported, such as one held in an HSM.
+type PrivateKey interface {
+	crypto.Signer
+	crypto.Decrypter
+}
 
 // errors
 var (
@@ -193,7 +200,7 @@ type PKIMessage struct {
 	Recipients []*x509.Certificate
 
 	// Signer info
-	SignerKey  *rsa.PrivateKey
+	SignerKey  crypto.Signer
 	SignerCert *x509.Certificate
 
 	logger log.Logger
@@ -328,7 +335,7 @@ func (msg *PKIMessage) parseMessageType() error {
 }
 
 // DecryptPKIEnvelope decrypts the pkcs envelopedData inside the SCEP PKIMessage
-func (msg *PKIMessage) DecryptPKIEnvelope(cert *x509.Certificate, key *rsa.PrivateKey) error {
+func (msg *PKIMessage) DecryptPKIEnvelope(cert *x509.Certificate, key PrivateKey) error {
 	p7, err := pkcs7.Parse(msg.p7.Content)
 	if err != nil {
 		return err
@@ -376,7 +383,7 @@ func (msg *PKIMessage) DecryptPKIEnvelope(cert *x509.Certificate, key *rsa.Priva
 	}
 }
 
-func (msg *PKIMessage) Fail(crtAuth *x509.Certificate, keyAuth *rsa.PrivateKey, info FailInfo) (*PKIMessage, error) {
+func (msg *PKIMessage) Fail(crtAuth *x509.Certificate, keyAuth crypto.Signer, info FailInfo) (*PKIMessage, error) {
 	config := pkcs7.SignerInfoConfig{
 		ExtraSignedAttributes: []pkcs7.Attribute{
 			{
@@ -440,7 +447,7 @@ func (msg *PKIMessage) Fail(crtAuth *x509.Certificate, keyAuth *rsa.PrivateKey, 
 }
 
 // Success returns a new PKIMessage with CertRep data using an already-issued certificate
-func (msg *PKIMessage) Success(crtAuth *x509.Certificate, keyAuth *rsa.PrivateKey, crt *x509.Certificate) (*PKIMessage, error) {
+func (msg *PKIMessage) Success(crtAuth *x509.Certificate, keyAuth PrivateKey, crt *x509.Certificate) (*PKIMessage, error) {
 	// check if CSRReqMessage has already been decrypted
 	if msg.CSRReqMessage.CSR == nil {
 		if err := msg.DecryptPKIEnvelope(crtAuth, keyAuth); err != nil {

@@ -2,7 +2,6 @@ package scepserver
 
 import (
 	"context"
-	"crypto/rsa"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -42,7 +41,7 @@ type service struct {
 	// quite likely the same as the CA keypair but may be its own SCEP
 	// specific keypair in the case of e.g. RA (proxy) operation.
 	crt *x509.Certificate
-	key *rsa.PrivateKey
+	key scep.PrivateKey
 
 	// Optional additional CA certificates for e.g. RA (proxy) use.
 	// Only used in this service when responding to GetCACert.
@@ -128,7 +127,7 @@ func WithAddlCA(ca *x509.Certificate) ServiceOption {
 }
 
 // NewService creates a new scep service
-func NewService(crt *x509.Certificate, key *rsa.PrivateKey, signer CSRSigner, opts ...ServiceOption) (Service, error) {
+func NewService(crt *x509.Certificate, key scep.PrivateKey, signer CSRSigner, opts ...ServiceOption) (Service, error) {
 	s := &service{
 		crt:         crt,
 		key:         key,
@@ -144,7 +143,7 @@ func NewService(crt *x509.Certificate, key *rsa.PrivateKey, signer CSRSigner, op
 }
 
 // Creater function
-type Creater func(*x509.Certificate, *rsa.PrivateKey, CSRSigner, ...ServiceOption) (Service, error)
+type Creater func(*x509.Certificate, scep.PrivateKey, CSRSigner, ...ServiceOption) (Service, error)
 
 var serviceLookup = map[string]Creater{
 	"server": NewService,
@@ -152,7 +151,7 @@ var serviceLookup = map[string]Creater{
 }
 
 // Create function
-func Create(serverType string, crt *x509.Certificate, key *rsa.PrivateKey, signer CSRSigner, opts ...ServiceOption) (Service, error) {
+func Create(serverType string, crt *x509.Certificate, key scep.PrivateKey, signer CSRSigner, opts ...ServiceOption) (Service, error) {
 	if creater, found := serviceLookup[serverType]; found {
 		return creater(crt, key, signer, opts...)
 	}
